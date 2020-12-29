@@ -5,7 +5,16 @@ sidebar.
 
 ## Prerequisites
 * [Set up your python environment](https://cloud.google.com/python/setup)
-* Use Python3 (virtualenv --python python3 env)
+
+  On Mac, using [Homebrew](https://brew.sh/):
+
+       $ brew upgrade
+       $ brew install python3
+       $ brew postinstall python3
+       $ python3 -m pip install --upgrade pip
+
+  The commands are similar on Linux with apt install.
+
 * A praw.ini file (not submitted) with the following contents:
 
         [nyknicks-sidebarbot]
@@ -16,10 +25,17 @@ sidebar.
 
 ## Running locally:
 
-    $ pip install --user --upgrade virtualenv
-    $ cd your/project
-    $ virtualenv --python python3 env
-    $ source env/bin/activate
     $ pip install -r requirements.txt
-    $ python sidebarbot.py
-    $ deactivate  # to end virtualenv
+    $ mkdir -p ~/.redditbot/logs
+    $ python3 sidebarbot.py NYKnicks
+
+## Unit tests
+
+    $ python3 -m unittest discover -s ./ -p '*_test.py'
+
+## NBA Data
+
+\* Tip: Install [this](https://chrome.google.com/webstore/detail/json-viewer/gbmdgpbipfallnflgajpaliibnhdgobh/related?hl=en-US) JSON viewer Chrome Extension.
+
+* Available APIs: http://data.nba.net/10s/prod/v1/today.json
+* Other API info: https://github.com/kashav/nba.js/blob/master/docs/api/DATA.md
