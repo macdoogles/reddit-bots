@@ -1,0 +1,108 @@
+from services.nba_service import NbaService
+from unittest.mock import patch
+
+import logging.config
+import os.path
+import unittest
+
+
+class MockResponse:
+
+  def __init__(self, file_name, status_code):
+    with open(file_name, 'r') as f:
+      self.content = f.read().encode('utf-8')
+    self.status_code = status_code
+
+  def raise_for_status(self):
+    pass
+
+
+def mocked_requests_get(*args, **kwargs):
+  requested_url = args[0]
+  testdata_path = 'services/testdata/' + requested_url.split('/')[-1]
+  if os.path.isfile(testdata_path):
+    return MockResponse(testdata_path, 200)
+  return MockResponse(None, 404)
+
+
+class NbaServiceTest(unittest.TestCase):
+  def setUp(self):
+    logging.basicConfig(level=logging.ERROR)
+    self.nba_service = NbaService(logging.getLogger(__name__))
+
+  @patch('requests.get', side_effect=mocked_requests_get)
+  def test_boxscore(self, mock_get):
+    boxscore = self.nba_service.boxscore('20201231', '0022000066')
+    # Just verify a few properties instead of the entire large response.
+    self.assertEqual(boxscore['basicGameData']['gameUrlCode'], '20201231/NYKTOR')
+    mock_get.assert_called_once_with(
+        'http://data.nba.net/prod/v1/20201231/0022000066_boxscore.json')
+
+  @patch('requests.get', side_effect=mocked_requests_get)
+  def test_conference_standings(self, mock_get):
+    standings = self.nba_service.conference_standings()
+    # Just verify a few properties instead of the entire large response.
+    self.assertEqual(2017, standings['seasonYear'])
+    teamIds = list(map(lambda t: t['teamId'], standings['conference']['east']))
+    self.assertEqual(teamIds[0:2], ['1610612761', '1610612738'])
+    mock_get.assert_called_once_with(
+        'http://data.nba.net/10s/prod/v1/current/standings_conference.json')
+
+  @patch('requests.get', side_effect=mocked_requests_get)
+  def test_current_year(self, mock_get):
+    self.assertEqual(self.nba_service.current_year(), 2020)
+    mock_get.assert_called_once_with(
+        'http://data.nba.net/10s/prod/v1/today.json')
+
+  @patch('requests.get', side_effect=mocked_requests_get)
+  def test_players(self, mock_get):
+    response = self.nba_service.players('2020')
+    # Just verify a few properties instead of the entire large response.
+    actual_names = list(
+        map(lambda player: player['temporaryDisplayName'], response))
+    expected_names = [
+        'Achiuwa, Precious',
+        'Adams, Jaylen',
+        'Adams, Steven',
+        'Adebayo, Bam',
+        'Aldridge, LaMarcus',
+        'Barrett, RJ',
+        'Brazdeikis, Ignas',
+        'Bullock, Reggie',
+        'Burks, Alec',
+    ]
+    self.assertEqual(actual_names, expected_names)
+    mock_get.assert_called_once_with(
+        'http://data.nba.net/prod/v1/2020/players.json')
+
+  @patch('requests.get', side_effect=mocked_requests_get)
+  def test_roster(self, mock_get):
+    response = self.nba_service.roster('knicks', '2020')
+    expected = set(['1629628', '1629649', '203493', '202692'])
+    self.assertEqual(response, expected)
+    mock_get.assert_called_once_with(
+        'http://data.nba.net/prod/v1/2020/teams/knicks/roster.json')
+
+  @patch('requests.get', side_effect=mocked_requests_get)
+  def test_schedule(self, mock_get):
+    response = self.nba_service.schedule('knicks', '2020')
+    # Just verify a few properties instead of the entire large response.
+    actual = list(map(lambda s: s['gameId'], response['league']['standard']))
+    expected = ['0012000002', '0012000015', '0012000028']
+    self.assertEqual(actual[0:3], expected)
+    mock_get.assert_called_once_with(
+        'http://data.nba.net/data/10s/prod/v1/2020/teams/knicks/schedule.json')
+
+  @patch('requests.get', side_effect=mocked_requests_get)
+  def test_teams(self, mock_get):
+    teams = self.nba_service.teams('2020')
+    # Just spot check a few properties instead of the entire large response.
+    self.assertEqual('Atlanta Hawks', teams['1610612737']['fullName'])
+    self.assertEqual('Hawks', teams['1610612737']['nickname'])
+    self.assertEqual('Boston Celtics', teams['1610612738']['fullName'])
+    mock_get.assert_called_once_with(
+        'http://data.nba.net/10s/prod/v1/2020/teams.json')
+
+
+if __name__ == '__main__':
+  unittest.main()
